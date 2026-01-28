@@ -1,0 +1,107 @@
+/* ---- 设计变量 ---- */
+:root {
+  /* 主色：暖棕 */
+  --color-primary: #b86f50;
+  --color-primary-hover: #9d5e42;
+  --color-primary-muted: rgba(184, 111, 80, 0.12);
+  /* 成功 / 已保存 */
+  --color-success: #3d7c50;
+  --color-success-muted: rgba(61, 124, 80, 0.12);
+  /* 中性 */
+  --color-bg: #f6f4f0;
+  --color-bg-card: #fff;
+  --color-text: #2d2a27;
+  --color-text-muted: #6f6b67;
+  --color-border: #e5e1dc;
+  --color-border-focus: var(--color-primary);
+  /* 危险操作 */
+  --color-danger: #c24a4a;
+  --color-danger-muted: rgba(194, 74, 74, 0.1);
+  /* 圆角 */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-full: 9999px;
+  /* 阴影 */
+  --shadow-card: 0 2px 12px rgba(45, 42, 39, 0.06);
+  --shadow-card-hover: 0 4px 20px rgba(45, 42, 39, 0.08);
+  --shadow-nav: 0 -2px 16px rgba(45, 42, 39, 0.06);
+  /* 过渡 */
+  --ease: 0.2s ease;
+  --ease-out: 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+  /* 字体 */
+  --font-sans: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  --text-title: 1.5rem;
+  --text-body: 0.9375rem;
+  --text-caption: 0.8125rem;
+  --text-small: 0.75rem;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  /* 间距（8px 网格） */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0 var(--space-4) var(--space-6);
+  padding-bottom: calc(var(--space-6) + 56px);
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+input,
+select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* 选中 / 焦点统一 */
+input:focus,
+select:focus,
+button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible) {
+  outline: none;
+}

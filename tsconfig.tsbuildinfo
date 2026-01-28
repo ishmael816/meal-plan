@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/store.ts","./src/todayplan.ts","./src/types.ts","./src/usenotification.ts","./src/pages/datapage.tsx","./src/pages/mealdetailpage.tsx","./src/pages/settingspage.tsx","./src/pages/todaylistpage.tsx","./src/pages/todaypage.tsx"],"version":"5.6.3"}

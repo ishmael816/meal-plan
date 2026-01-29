@@ -17,6 +17,8 @@
   /* 危险操作 */
   --color-danger: #c24a4a;
   --color-danger-muted: rgba(194, 74, 74, 0.1);
+  /* 计划外食物克数标识（深红） */
+  --color-custom-grams: #8b2500;
   /* 圆角 */
   --radius-xs: 6px;
   --radius-sm: 10px;

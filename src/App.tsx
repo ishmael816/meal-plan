@@ -4,6 +4,7 @@ import type { PlanSettings, LogEntry } from './types'
 import type { DailySetSelection } from './todayPlan'
 import { store } from './store'
 import { useNotification } from './useNotification'
+import { BackButtonHandler } from './BackButtonHandler'
 import { SettingsPage } from './pages/SettingsPage'
 import { TodayListPage } from './pages/TodayListPage'
 import { MealDetailPage } from './pages/MealDetailPage'
@@ -66,6 +67,7 @@ function App() {
 
   return (
     <HashRouter>
+      <BackButtonHandler />
       <div className="app">
         <nav className="nav">
           <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')}>

@@ -469,6 +469,21 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 计划外食物：克数用深红色标识 */
+.today-entry--custom .item-grams,
+.item-grams--custom,
+.today-entry--custom .unit,
+.unit--custom {
+  color: var(--color-custom-grams);
+  font-weight: var(--weight-medium);
+}
+
+.today-planned-hint {
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+  margin-left: var(--space-2);
+}
+
 /* ========== 今日列表·餐次卡片 ========== */
 .meal-cards {
   display: flex;
@@ -738,10 +753,156 @@
   font-variant-numeric: tabular-nums;
 }
 
+.data-grams.data-grams--custom {
+  color: var(--color-custom-grams);
+  font-weight: var(--weight-medium);
+}
+
 .data-done {
   color: var(--color-success);
   font-weight: var(--weight-semibold);
   font-size: 1rem;
+}
+
+/* ========== 日历视图 ========== */
+.calendar-card {
+  margin-bottom: var(--space-4);
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.calendar-month-title {
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.btn-calendar-nav {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--ease), color var(--ease), background var(--ease);
+}
+
+.btn-calendar-nav:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-muted);
+}
+
+.btn-calendar-today {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-caption);
+  cursor: pointer;
+  margin-bottom: var(--space-3);
+  transition: border-color var(--ease), color var(--ease), background var(--ease);
+}
+
+.btn-calendar-today:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-muted);
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: var(--text-small);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+  padding: var(--space-1);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  font-size: var(--text-body);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: border-color var(--ease), background var(--ease), color var(--ease);
+  padding: var(--space-1);
+}
+
+.calendar-day:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-muted);
+}
+
+.calendar-day.empty {
+  border: none;
+  background: transparent;
+  cursor: default;
+}
+
+.calendar-day.has-data {
+  border-color: var(--color-primary);
+}
+
+.calendar-day.today {
+  background: var(--color-primary-muted);
+  border-color: var(--color-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.calendar-day.selected {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.calendar-day.selected .calendar-day-dot {
+  background: #fff;
+}
+
+.calendar-day-number {
+  font-size: var(--text-body);
+  line-height: 1;
+}
+
+.calendar-day-dot {
+  position: absolute;
+  bottom: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-primary);
 }
 
 .data-export {

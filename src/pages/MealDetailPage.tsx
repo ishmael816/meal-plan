@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useRef } from 'react'
+import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import type { PlanSettings, LogEntry } from '../types'
 import { getTodayPlan, type DailySetSelection } from '../todayPlan'
@@ -32,9 +32,21 @@ export function MealDetailPage({
   const { slotId } = useParams<{ slotId: string }>()
   const navigate = useNavigate()
   const date = todayStr()
+  
+  // 临时状态：存储当前餐次的修改，只在保存时才写入 logs
+  const [tempLogs, setTempLogs] = useState<LogEntry[]>([])
+  
+  // 初始化：从 logs 中读取该餐次的数据
+  useEffect(() => {
+    if (!slotId) return
+    const slotLogs = logs.filter((l) => l.date === date && l.slotId === slotId)
+    setTempLogs(slotLogs)
+  }, [slotId, date]) // 只在 slotId 或 date 变化时重新初始化
+  
+  // 使用临时 logs 来显示计划
   const plan = useMemo(
-    () => getTodayPlan(settings, logs, date, dailySetSelection),
-    [settings, logs, date, dailySetSelection]
+    () => getTodayPlan(settings, tempLogs, date, dailySetSelection),
+    [settings, tempLogs, date, dailySetSelection]
   )
   const slotView = plan.find((p) => p.slot.id === slotId)
   const saved = (savedMeals[date] ?? []).includes(slotId ?? '')
@@ -64,8 +76,9 @@ export function MealDetailPage({
     setActiveSetForThisSlot(settings.recipeSets[nextIdx].id)
   }, [slotView, settings.recipeSets, setActiveSetForThisSlot])
 
+  // 修改临时状态，不直接写入 logs
   const upsert = (entry: Partial<LogEntry> & { date: string; slotId: string }) => {
-    setLogs((prev) => {
+    setTempLogs((prev) => {
       const match = (l: LogEntry) =>
         l.date === entry.date &&
         l.slotId === entry.slotId &&
@@ -88,7 +101,7 @@ export function MealDetailPage({
   }
 
   const removeLog = (id: string) => {
-    setLogs((prev) => prev.filter((l) => l.id !== id))
+    setTempLogs((prev) => prev.filter((l) => l.id !== id))
   }
 
   const addCustom = (sid: string, slotName: string) => {
@@ -107,8 +120,18 @@ export function MealDetailPage({
     })
   }
 
+  // 保存时：将临时状态写入 logs
   const handleSave = () => {
     if (!slotId) return
+    
+    // 先删除该餐次的所有旧记录
+    setLogs((prev) => {
+      const rest = prev.filter((l) => !(l.date === date && l.slotId === slotId))
+      // 然后添加新的记录
+      return [...rest, ...tempLogs]
+    })
+    
+    // 标记为已保存
     setSavedMeals((prev) => {
       const list = prev[date] ?? []
       if (list.includes(slotId)) return prev

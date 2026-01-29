@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { PlanSettings, MealSlot, MealItem, RecipeSet } from '../types'
 import { SLOT_NAME_SUGGESTIONS } from '../types'
 
@@ -209,18 +209,13 @@ export function SettingsPage({ settings, setSettings }: Props) {
                           </button>
                         </div>
                       ))}
-                      <button
-                        type="button"
-                        className="btn-add-item"
-                        onClick={() =>
-                          updateSetItems(set.id, slot.id, (items) => [
-                            ...items,
-                            { id: nanoid(), name: '新食物', grams: 50 },
-                          ])
+                      <AddItemButton
+                        setId={set.id}
+                        slotId={slot.id}
+                        onAdd={(newItem) =>
+                          updateSetItems(set.id, slot.id, (items) => [...items, newItem])
                         }
-                      >
-                        + 添加
-                      </button>
+                      />
                     </div>
                   </div>
                 ))}
@@ -233,5 +228,110 @@ export function SettingsPage({ settings, setSettings }: Props) {
         </button>
       </section>
     </div>
+  )
+}
+
+// 添加食物按钮组件，自动聚焦输入框
+type AddItemButtonProps = {
+  setId: string
+  slotId: string
+  onAdd: (item: MealItem) => void
+}
+
+function AddItemButton({ onAdd }: AddItemButtonProps) {
+  const [isAdding, setIsAdding] = useState(false)
+  const [newItem, setNewItem] = useState<MealItem>({ id: nanoid(), name: '', grams: 50 })
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  const itemRowRef = useRef<HTMLDivElement>(null)
+
+  // 当开始添加时，自动聚焦到名称输入框
+  useEffect(() => {
+    if (isAdding && nameInputRef.current) {
+      // 延迟一下确保 DOM 已更新
+      setTimeout(() => {
+        nameInputRef.current?.focus()
+        // 滚动到输入框位置，确保不被键盘遮挡
+        // 使用 requestAnimationFrame 确保在浏览器重绘后执行
+        requestAnimationFrame(() => {
+          if (itemRowRef.current) {
+            // 计算输入框的位置，确保在视口中心偏上的位置（为键盘留出空间）
+            const rect = itemRowRef.current.getBoundingClientRect()
+            const scrollY = window.scrollY + rect.top - window.innerHeight / 3
+            window.scrollTo({ top: Math.max(0, scrollY), behavior: 'smooth' })
+          }
+        })
+      }, 150)
+    }
+  }, [isAdding])
+
+  // 处理键盘事件：Enter 键完成添加，Escape 键取消
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && newItem.name.trim()) {
+      handleAdd()
+    } else if (e.key === 'Escape') {
+      handleCancel()
+    }
+  }
+
+  const handleAdd = () => {
+    if (newItem.name.trim()) {
+      onAdd({ ...newItem, name: newItem.name.trim() })
+      setNewItem({ id: nanoid(), name: '', grams: 50 })
+      setIsAdding(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setNewItem({ id: nanoid(), name: '', grams: 50 })
+    setIsAdding(false)
+  }
+
+  if (isAdding) {
+    return (
+      <div ref={itemRowRef} className="item-row">
+        <input
+          ref={nameInputRef}
+          className="item-name"
+          value={newItem.name}
+          onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+          onKeyDown={handleKeyDown}
+          onBlur={() => {
+            // 延迟处理 blur，以便点击添加按钮时能先执行
+            setTimeout(() => {
+              if (newItem.name.trim()) {
+                handleAdd()
+              } else {
+                handleCancel()
+              }
+            }, 200)
+          }}
+          placeholder="食物名称"
+          autoFocus
+        />
+        <input
+          type="number"
+          className="item-grams"
+          min={0}
+          value={newItem.grams || ''}
+          onChange={(e) => setNewItem({ ...newItem, grams: +e.target.value || 0 })}
+          onKeyDown={handleKeyDown}
+          placeholder="克"
+        />
+        <span className="unit">g</span>
+        <button type="button" className="btn-ghost" onClick={handleCancel}>
+          取消
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      className="btn-add-item"
+      onClick={() => setIsAdding(true)}
+    >
+      + 添加
+    </button>
   )
 }

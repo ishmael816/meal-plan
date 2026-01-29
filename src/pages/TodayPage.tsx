@@ -51,6 +51,7 @@ function EntryRow({ entry, date, slotId, onUpsert, onRemove }: EntryRowProps) {
 
   const name = isPlanned ? item!.name : entry.log.itemName
   const plannedG = isPlanned ? item!.grams : entry.log.plannedGrams
+  const plannedGDisplay = isPlanned ? plannedG : 0
   const actualG = log?.actualGrams ?? plannedG
   const checked = log?.checked ?? false
   const itemId = isPlanned ? item!.id : entry.log.itemId
@@ -85,7 +86,7 @@ function EntryRow({ entry, date, slotId, onUpsert, onRemove }: EntryRowProps) {
   }
 
   return (
-    <li className="today-entry">
+    <li className={`today-entry ${!isPlanned ? 'today-entry--custom' : ''}`}>
       <label className="today-check">
         <input
           type="checkbox"
@@ -96,7 +97,7 @@ function EntryRow({ entry, date, slotId, onUpsert, onRemove }: EntryRowProps) {
       </label>
       <div className="today-entry-body">
         <div className="today-entry-name">{name}</div>
-        {plannedG > 0 ? (
+        {plannedGDisplay > 0 ? (
           <div className="today-grams-row">
             <input
               type="range"
@@ -114,12 +115,15 @@ function EntryRow({ entry, date, slotId, onUpsert, onRemove }: EntryRowProps) {
             <input
               type="number"
               min={0}
-              className="item-grams"
+              className={`item-grams ${!isPlanned ? 'item-grams--custom' : ''}`}
               value={actualG < 0 ? '' : actualG}
               onChange={(e) => setActualGrams(+e.target.value || 0)}
               placeholder="克数"
             />
-            <span className="unit">g</span>
+            <span className={`unit ${!isPlanned ? 'unit--custom' : ''}`}>g</span>
+            {!isPlanned && (
+              <span className="today-planned-hint">计划 0g</span>
+            )}
           </div>
         )}
       </div>

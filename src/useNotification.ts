@@ -8,15 +8,16 @@ function toMinutes(t: string): number {
   return (h ?? 0) * 60 + (m ?? 0)
 }
 
-/** 下一个触发时刻：今日该时间，若已过则改为明日 */
-function nextAt(timeStr: string): Date {
+/** 从 "HH:mm" 解析出 hour、minute（0-23, 0-59） */
+function parseTime(timeStr: string): { hour: number; minute: number } {
   const [h, m] = timeStr.split(':').map(Number)
-  const at = new Date()
-  at.setHours(h ?? 0, m ?? 0, 0, 0)
-  if (at.getTime() <= Date.now()) {
-    at.setDate(at.getDate() + 1)
-  }
-  return at
+  return { hour: h ?? 0, minute: m ?? 0 }
+}
+
+/** 为每个 slot 生成稳定的通知 ID（Android 需 32 位整数，避免与其它冲突） */
+function slotNotificationId(_slotId: string, index: number): number {
+  const base = 2000
+  return base + index
 }
 
 async function setupNativeNotifications(settings: PlanSettings) {
@@ -42,16 +43,15 @@ async function setupNativeNotifications(settings: PlanSettings) {
 
   const itemsBySlot = getDefaultItemsBySlot(settings)
   const notifications = settings.slots.map((slot, index) => {
-    const at = nextAt(slot.time)
+    const { hour, minute } = parseTime(slot.time)
     const items = (itemsBySlot[slot.id] ?? []).map((i) => i.name).join('、')
     return {
-      id: index + 1,
+      id: slotNotificationId(slot.id, index),
       title: '食谱小助手',
       body: `该吃「${slot.name}」啦${items ? `：${items}` : ''}`,
       channelId: 'meal-reminder',
       schedule: {
-        at,
-        repeats: true,
+        on: { hour, minute },
         allowWhileIdle: true,
       },
     }
@@ -67,7 +67,9 @@ export function useNotification(settings: PlanSettings) {
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
-      setupNativeNotifications(settings).catch(() => {})
+      setupNativeNotifications(settings).catch((err) => {
+        console.warn('用餐提醒注册失败:', err)
+      })
       return
     }
 

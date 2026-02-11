@@ -1,13 +1,23 @@
 import { useState, useRef, useEffect } from 'react'
-import type { PlanSettings, MealSlot, MealItem, RecipeSet } from '../types'
+import type { MealSlot, MealItem, RecipeSet } from '../types'
 import { SLOT_NAME_SUGGESTIONS } from '../types'
+import { useSettings, useAppStore } from '../stores/appStore'
+import { showToast } from '../components/Toast'
 
 const nanoid = () => Math.random().toString(36).slice(2, 12)
 
-type Props = { settings: PlanSettings; setSettings: (v: PlanSettings) => void }
-
-export function SettingsPage({ settings, setSettings }: Props) {
+export function SettingsPage() {
+  const settings = useSettings()
+  const setSettings = useAppStore((state) => state.setSettings)
   const [editingSetId, setEditingSetId] = useState<string | null>(null)
+
+  if (!settings) {
+    return (
+      <div className="page">
+        <p className="muted">加载中...</p>
+      </div>
+    )
+  }
 
   const updateSlots = (fn: (s: MealSlot[]) => MealSlot[]) => {
     const nextSlots = fn(settings.slots)
@@ -32,6 +42,7 @@ export function SettingsPage({ settings, setSettings }: Props) {
   }
 
   const removeSlot = (slotId: string) => {
+    if (!confirm('确定要删除这个餐次吗？')) return
     const nextSlots = settings.slots.filter((x) => x.id !== slotId)
     const nextSets = settings.recipeSets.map((set) => {
       const ib = { ...set.itemsBySlot }
@@ -40,6 +51,7 @@ export function SettingsPage({ settings, setSettings }: Props) {
     })
     let defaultSetId = settings.defaultSetId
     setSettings({ ...settings, slots: nextSlots, recipeSets: nextSets, defaultSetId })
+    showToast('餐次已删除', 'success')
   }
 
   const setSlotName = (slotId: string, name: string) => {
@@ -63,14 +75,17 @@ export function SettingsPage({ settings, setSettings }: Props) {
       defaultSetId: settings.defaultSetId ?? id,
     })
     setEditingSetId(id)
+    showToast('新套餐已创建', 'success')
   }
 
   const removeRecipeSet = (setId: string) => {
+    if (!confirm('确定要删除这个套餐吗？')) return
     const next = settings.recipeSets.filter((s) => s.id !== setId)
     const defaultSetId =
       settings.defaultSetId === setId ? (next[0]?.id ?? null) : settings.defaultSetId
     setSettings({ ...settings, recipeSets: next, defaultSetId })
     if (editingSetId === setId) setEditingSetId(null)
+    showToast('套餐已删除', 'success')
   }
 
   const updateSet = (setId: string, patch: Partial<RecipeSet>) => {
@@ -231,7 +246,7 @@ export function SettingsPage({ settings, setSettings }: Props) {
   )
 }
 
-// 添加食物按钮组件，自动聚焦输入框
+// Add food button component, auto-focus input
 type AddItemButtonProps = {
   setId: string
   slotId: string
@@ -244,17 +259,12 @@ function AddItemButton({ onAdd }: AddItemButtonProps) {
   const nameInputRef = useRef<HTMLInputElement>(null)
   const itemRowRef = useRef<HTMLDivElement>(null)
 
-  // 当开始添加时，自动聚焦到名称输入框
   useEffect(() => {
     if (isAdding && nameInputRef.current) {
-      // 延迟一下确保 DOM 已更新
       setTimeout(() => {
         nameInputRef.current?.focus()
-        // 滚动到输入框位置，确保不被键盘遮挡
-        // 使用 requestAnimationFrame 确保在浏览器重绘后执行
         requestAnimationFrame(() => {
           if (itemRowRef.current) {
-            // 计算输入框的位置，确保在视口中心偏上的位置（为键盘留出空间）
             const rect = itemRowRef.current.getBoundingClientRect()
             const scrollY = window.scrollY + rect.top - window.innerHeight / 3
             window.scrollTo({ top: Math.max(0, scrollY), behavior: 'smooth' })
@@ -264,7 +274,6 @@ function AddItemButton({ onAdd }: AddItemButtonProps) {
     }
   }, [isAdding])
 
-  // 处理键盘事件：Enter 键完成添加，Escape 键取消
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && newItem.name.trim()) {
       handleAdd()
@@ -296,7 +305,6 @@ function AddItemButton({ onAdd }: AddItemButtonProps) {
           onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
           onKeyDown={handleKeyDown}
           onBlur={() => {
-            // 延迟处理 blur，以便点击添加按钮时能先执行
             setTimeout(() => {
               if (newItem.name.trim()) {
                 handleAdd()

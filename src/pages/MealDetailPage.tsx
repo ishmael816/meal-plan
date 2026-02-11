@@ -1,7 +1,8 @@
 import { useMemo, useCallback, useRef, useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import type { PlanSettings, LogEntry } from '../types'
-import { getTodayPlan, type DailySetSelection } from '../todayPlan'
+import type { LogEntry } from '../types'
+import { getTodayPlan } from '../todayPlan'
+import { useAppStore, useSettings, useLogs, useSavedMeals, useDailySetSelection } from '../stores/appStore'
 import { SlotBlock } from './TodayPage'
 
 const nanoid = () => Math.random().toString(36).slice(2, 12)
@@ -10,42 +11,32 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-type Props = {
-  settings: PlanSettings
-  logs: LogEntry[]
-  setLogs: (v: LogEntry[] | ((prev: LogEntry[]) => LogEntry[])) => void
-  savedMeals: Record<string, string[]>
-  setSavedMeals: (v: Record<string, string[]> | ((p: Record<string, string[]>) => Record<string, string[]>)) => void
-  dailySetSelection: DailySetSelection
-  setDailySetSelection: (v: DailySetSelection | ((p: DailySetSelection) => DailySetSelection)) => void
-}
-
-export function MealDetailPage({
-  settings,
-  logs,
-  setLogs,
-  savedMeals,
-  setSavedMeals,
-  dailySetSelection,
-  setDailySetSelection,
-}: Props) {
+export function MealDetailPage() {
   const { slotId } = useParams<{ slotId: string }>()
   const navigate = useNavigate()
   const date = todayStr()
   
-  // 临时状态：存储当前餐次的修改，只在保存时才写入 logs
+  const settings = useSettings()
+  const logs = useLogs()
+  const savedMeals = useSavedMeals()
+  const dailySetSelection = useDailySetSelection()
+  
+  const setLogs = useAppStore((state) => state.setLogs)
+  const markMealSaved = useAppStore((state) => state.markMealSaved)
+  const setSlotSet = useAppStore((state) => state.setSlotSet)
+  
+  // Temp state for current meal modifications
   const [tempLogs, setTempLogs] = useState<LogEntry[]>([])
   
-  // 初始化：从 logs 中读取该餐次的数据
+  // Initialize from logs
   useEffect(() => {
     if (!slotId) return
     const slotLogs = logs.filter((l) => l.date === date && l.slotId === slotId)
     setTempLogs(slotLogs)
-  }, [slotId, date]) // 只在 slotId 或 date 变化时重新初始化
+  }, [slotId, date, logs])
   
-  // 使用临时 logs 来显示计划
   const plan = useMemo(
-    () => getTodayPlan(settings, tempLogs, date, dailySetSelection),
+    () => settings ? getTodayPlan(settings, tempLogs, date, dailySetSelection) : [],
     [settings, tempLogs, date, dailySetSelection]
   )
   const slotView = plan.find((p) => p.slot.id === slotId)
@@ -54,29 +45,25 @@ export function MealDetailPage({
   const setActiveSetForThisSlot = useCallback(
     (setId: string) => {
       if (!slotId) return
-      setDailySetSelection((prev) => ({
-        ...prev,
-        [date]: { ...(prev[date] ?? {}), [slotId]: setId },
-      }))
+      setSlotSet(date, slotId, setId)
     },
-    [date, slotId, setDailySetSelection]
+    [date, slotId, setSlotSet]
   )
 
   const switchToPrevSet = useCallback(() => {
-    if (!slotView || settings.recipeSets.length <= 1) return
+    if (!slotView || !settings || settings.recipeSets.length <= 1) return
     const idx = settings.recipeSets.findIndex((s) => s.id === slotView.activeSetId)
     const nextIdx = idx <= 0 ? settings.recipeSets.length - 1 : idx - 1
     setActiveSetForThisSlot(settings.recipeSets[nextIdx].id)
-  }, [slotView, settings.recipeSets, setActiveSetForThisSlot])
+  }, [slotView, settings, setActiveSetForThisSlot])
 
   const switchToNextSet = useCallback(() => {
-    if (!slotView || settings.recipeSets.length <= 1) return
+    if (!slotView || !settings || settings.recipeSets.length <= 1) return
     const idx = settings.recipeSets.findIndex((s) => s.id === slotView.activeSetId)
     const nextIdx = idx < 0 || idx >= settings.recipeSets.length - 1 ? 0 : idx + 1
     setActiveSetForThisSlot(settings.recipeSets[nextIdx].id)
-  }, [slotView, settings.recipeSets, setActiveSetForThisSlot])
+  }, [slotView, settings, setActiveSetForThisSlot])
 
-  // 修改临时状态，不直接写入 logs
   const upsert = (entry: Partial<LogEntry> & { date: string; slotId: string }) => {
     setTempLogs((prev) => {
       const match = (l: LogEntry) =>
@@ -120,27 +107,20 @@ export function MealDetailPage({
     })
   }
 
-  // 保存时：将临时状态写入 logs
   const handleSave = () => {
     if (!slotId) return
     
-    // 先删除该餐次的所有旧记录
+    // Remove old records for this meal and add new ones
     setLogs((prev) => {
       const rest = prev.filter((l) => !(l.date === date && l.slotId === slotId))
-      // 然后添加新的记录
       return [...rest, ...tempLogs]
     })
     
-    // 标记为已保存
-    setSavedMeals((prev) => {
-      const list = prev[date] ?? []
-      if (list.includes(slotId)) return prev
-      return { ...prev, [date]: [...list, slotId] }
-    })
+    markMealSaved(date, slotId)
     navigate('/')
   }
 
-  if (!slotId || !slotView) {
+  if (!slotId || !slotView || !settings) {
     return (
       <div className="page">
         <p className="muted">未找到该餐次</p>
@@ -176,7 +156,6 @@ export function MealDetailPage({
         </div>
       </div>
 
-      {/* 左划右划或左右箭头切换当餐套餐 */}
       {canSwitch && (
         <div
           className="meal-set-switcher"

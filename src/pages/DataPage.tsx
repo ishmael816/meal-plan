@@ -1,15 +1,12 @@
 import { useMemo, useState } from 'react'
-import type { LogEntry, PlanSettings } from '../types'
+import { useLogs, useSettings } from '../stores/appStore'
 
-type Props = { logs: LogEntry[]; settings: PlanSettings }
-
-const BOM = '\uFEFF'
-
-function slotName(settings: PlanSettings, slotId: string): string {
+function slotName(settings: { slots: { id: string; name: string }[] }, slotId: string): string {
   return settings.slots.find((s) => s.id === slotId)?.name ?? slotId
 }
 
-function toCSV(logs: LogEntry[], settings: PlanSettings): string {
+function toCSV(logs: ReturnType<typeof useLogs>, settings: NonNullable<ReturnType<typeof useSettings>>): string {
+  const BOM = '\uFEFF'
   const head = ['日期', '餐次', '食物名称', '计划克数', '实际克数', '已完成', '自定义项']
   const rows = logs.map((l) => [
     l.date,
@@ -22,10 +19,10 @@ function toCSV(logs: LogEntry[], settings: PlanSettings): string {
   ])
   const line = (arr: string[]) =>
     arr.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')
-  return [head, ...rows].map(line).join('\r\n')
+  return BOM + [head, ...rows].map(line).join('\r\n')
 }
 
-function toJSON(logs: LogEntry[]): string {
+function toJSON(logs: ReturnType<typeof useLogs>): string {
   return JSON.stringify(logs, null, 2)
 }
 
@@ -39,9 +36,9 @@ function download(content: string, filename: string, mime: string) {
   URL.revokeObjectURL(url)
 }
 
-/** 按日期分组，新日期在前 */
-function groupByDate(logs: LogEntry[]): { date: string; items: LogEntry[] }[] {
-  const map = new Map<string, LogEntry[]>()
+/** Group by date, newest first */
+function groupByDate(logs: ReturnType<typeof useLogs>): { date: string; items: typeof logs }[] {
+  const map = new Map<string, typeof logs>()
   for (const l of logs) {
     const list = map.get(l.date) ?? []
     list.push(l)
@@ -52,7 +49,7 @@ function groupByDate(logs: LogEntry[]): { date: string; items: LogEntry[] }[] {
     .map(([date, items]) => ({ date, items }))
 }
 
-/** 获取日历月份的所有日期 */
+/** Get all days in a month */
 function getCalendarDays(year: number, month: number): Date[] {
   const lastDay = new Date(year, month + 1, 0)
   const days: Date[] = []
@@ -62,17 +59,17 @@ function getCalendarDays(year: number, month: number): Date[] {
   return days
 }
 
-/** 格式化日期为 YYYY-MM-DD */
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10)
 }
 
-/** 获取日期是星期几（0=周日，1=周一...） */
 function getDayOfWeek(date: Date): number {
   return date.getDay()
 }
 
-export function DataPage({ logs, settings }: Props) {
+export function DataPage() {
+  const settings = useSettings()
+  const logs = useLogs()
   const [format, setFormat] = useState<'json' | 'csv'>('csv')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -81,26 +78,22 @@ export function DataPage({ logs, settings }: Props) {
   })
   
   const groups = useMemo(() => groupByDate(logs), [logs])
-  const csv = useMemo(() => toCSV(logs, settings), [logs, settings])
+  const csv = useMemo(() => settings ? toCSV(logs, settings) : '', [logs, settings])
   const json = useMemo(() => toJSON(logs), [logs])
   
-  // 获取有数据的日期集合
   const datesWithData = useMemo(() => {
     return new Set(logs.map((l) => l.date))
   }, [logs])
   
-  // 获取当前月份的日期
   const calendarDays = useMemo(() => {
     return getCalendarDays(currentMonth.year, currentMonth.month)
   }, [currentMonth])
   
-  // 获取选中日期的数据
   const selectedDateData = useMemo(() => {
     if (!selectedDate) return null
     return groups.find((g) => g.date === selectedDate)?.items ?? []
   }, [selectedDate, groups])
   
-  // 切换到上一个月
   const goToPrevMonth = () => {
     setCurrentMonth((prev) => {
       if (prev.month === 0) {
@@ -110,7 +103,6 @@ export function DataPage({ logs, settings }: Props) {
     })
   }
   
-  // 切换到下一个月
   const goToNextMonth = () => {
     setCurrentMonth((prev) => {
       if (prev.month === 11) {
@@ -120,7 +112,6 @@ export function DataPage({ logs, settings }: Props) {
     })
   }
   
-  // 切换到今天
   const goToToday = () => {
     const now = new Date()
     setCurrentMonth({ year: now.getFullYear(), month: now.getMonth() })
@@ -130,7 +121,7 @@ export function DataPage({ logs, settings }: Props) {
   const handleExport = () => {
     const d = new Date().toISOString().slice(0, 10)
     if (format === 'csv') {
-      download(BOM + csv, `食谱记录_${d}.csv`, 'text/csv;charset=utf-8')
+      download(csv, `食谱记录_${d}.csv`, 'text/csv;charset=utf-8')
     } else {
       download(json, `食谱记录_${d}.json`, 'application/json')
     }
@@ -138,6 +129,14 @@ export function DataPage({ logs, settings }: Props) {
   
   const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
   const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+
+  if (!settings) {
+    return (
+      <div className="page">
+        <p className="muted">加载中...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="page">
@@ -150,7 +149,7 @@ export function DataPage({ logs, settings }: Props) {
         <div className="card data-empty">暂无记录，在「今日」中完成并保存餐次后会出现。</div>
       ) : (
         <>
-          {/* 日历视图 */}
+          {/* Calendar View */}
           <div className="card calendar-card">
             <div className="calendar-header">
               <button type="button" className="btn-calendar-nav" onClick={goToPrevMonth}>
@@ -174,7 +173,6 @@ export function DataPage({ logs, settings }: Props) {
             </div>
             
             <div className="calendar-grid">
-              {/* 填充第一个日期前的空白 */}
               {Array.from({ length: getDayOfWeek(calendarDays[0]) }).map((_, i) => (
                 <div key={`empty-${i}`} className="calendar-day empty"></div>
               ))}
@@ -200,7 +198,7 @@ export function DataPage({ logs, settings }: Props) {
             </div>
           </div>
           
-          {/* 选中日期的详情 */}
+          {/* Selected date details */}
           {selectedDate && selectedDateData != null && selectedDateData.length > 0 && (
             <section className="card data-group">
               <div className="data-group-title">{selectedDate}</div>

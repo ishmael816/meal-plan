@@ -1,9 +1,6 @@
 import type { PlanSettings, LogEntry, RecipeSet } from './types'
-
-const SETTINGS_KEY = 'meal-plan-settings'
-const LOGS_KEY = 'meal-plan-logs'
-const SAVED_MEALS_KEY = 'meal-plan-saved-meals'
-const DAILY_SET_KEY = 'meal-plan-daily-set'
+import type { DailySetSelection } from './todayPlan'
+import * as db from './db'
 
 const DEFAULT_SLOTS = [
   { id: 'breakfast', name: '早餐', time: '10:00' },
@@ -26,7 +23,7 @@ const DEFAULT_RECIPE_SET: RecipeSet = {
   },
 }
 
-/** 兼容旧版：仅有 itemsBySlot 时转为 recipeSets */
+/** 兼容旧版数据格式 */
 function normalizeSettings(raw: Record<string, unknown>): PlanSettings {
   if (raw.slots && Array.isArray(raw.slots) && raw.recipeSets && Array.isArray(raw.recipeSets)) {
     const s = raw as unknown as PlanSettings
@@ -51,11 +48,11 @@ function normalizeSettings(raw: Record<string, unknown>): PlanSettings {
   }
 }
 
-function getSettings(): PlanSettings {
-  try {
-    const s = localStorage.getItem(SETTINGS_KEY)
-    if (s) return normalizeSettings(JSON.parse(s))
-  } catch (_) {}
+async function getSettings(): Promise<PlanSettings> {
+  const settings = await db.getSettings()
+  if (settings) {
+    return normalizeSettings(settings as unknown as Record<string, unknown>)
+  }
   return {
     slots: DEFAULT_SLOTS,
     recipeSets: [DEFAULT_RECIPE_SET],
@@ -63,53 +60,66 @@ function getSettings(): PlanSettings {
   }
 }
 
-function setSettings(settings: PlanSettings): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+async function setSettings(settings: PlanSettings): Promise<void> {
+  await db.setSettings(settings)
 }
 
-function getLogs(): LogEntry[] {
-  try {
-    const s = localStorage.getItem(LOGS_KEY)
-    if (s) return JSON.parse(s)
-  } catch (_) {}
-  return []
+async function getLogs(): Promise<LogEntry[]> {
+  return db.getLogs()
 }
 
-function setLogs(logs: LogEntry[]): void {
-  localStorage.setItem(LOGS_KEY, JSON.stringify(logs))
+async function setLogs(logs: LogEntry[]): Promise<void> {
+  await db.setLogs(logs)
 }
 
-function getSavedMeals(): Record<string, string[]> {
-  try {
-    const s = localStorage.getItem(SAVED_MEALS_KEY)
-    if (s) return JSON.parse(s)
-  } catch (_) {}
-  return {}
+async function getSavedMeals(): Promise<Record<string, string[]>> {
+  return db.getSavedMeals()
 }
 
-function setSavedMeals(v: Record<string, string[]>): void {
-  localStorage.setItem(SAVED_MEALS_KEY, JSON.stringify(v))
+async function setSavedMeals(v: Record<string, string[]>): Promise<void> {
+  await db.setSavedMeals(v)
 }
 
-function getDailySetSelection(): Record<string, Record<string, string>> {
-  try {
-    const s = localStorage.getItem(DAILY_SET_KEY)
-    if (s) return JSON.parse(s)
-  } catch (_) {}
-  return {}
+async function getDailySetSelection(): Promise<DailySetSelection> {
+  return db.getDailySetSelection()
 }
 
-function setDailySetSelection(v: Record<string, Record<string, string>>): void {
-  localStorage.setItem(DAILY_SET_KEY, JSON.stringify(v))
+async function setDailySetSelection(v: DailySetSelection): Promise<void> {
+  await db.setDailySetSelection(v)
+}
+
+// Migration flag check
+let migrationChecked = false
+
+async function ensureMigrated(): Promise<void> {
+  if (!migrationChecked) {
+    await db.migrateFromLocalStorage()
+    migrationChecked = true
+  }
 }
 
 export const store = {
-  getSettings,
+  getSettings: async () => {
+    await ensureMigrated()
+    return getSettings()
+  },
   setSettings,
-  getLogs,
+  getLogs: async () => {
+    await ensureMigrated()
+    return getLogs()
+  },
   setLogs,
-  getSavedMeals,
+  getSavedMeals: async () => {
+    await ensureMigrated()
+    return getSavedMeals()
+  },
   setSavedMeals,
-  getDailySetSelection,
+  getDailySetSelection: async () => {
+    await ensureMigrated()
+    return getDailySetSelection()
+  },
   setDailySetSelection,
 }
+
+// Re-export db for advanced usage
+export { db }

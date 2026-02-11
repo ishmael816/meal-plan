@@ -1,73 +1,42 @@
-import { useState, useCallback } from 'react'
+import { useEffect } from 'react'
 import { HashRouter, Routes, Route, NavLink } from 'react-router-dom'
-import type { PlanSettings, LogEntry } from './types'
-import type { DailySetSelection } from './todayPlan'
-import { store } from './store'
+import { useAppStore, useIsLoading, useSettings } from './stores/appStore'
 import { useNotification } from './useNotification'
 import { BackButtonHandler } from './BackButtonHandler'
+import { ToastContainer } from './components/Toast'
 import { SettingsPage } from './pages/SettingsPage'
-import { TodayListPage } from './pages/TodayListPage'
+import { TodayPageNew } from './pages/TodayPageNew'
 import { MealDetailPage } from './pages/MealDetailPage'
 import { DataPage } from './pages/DataPage'
 import './App.css'
 import './pages.css'
 
-function loadSettings(): PlanSettings {
-  return store.getSettings()
-}
-
-function loadLogs(): LogEntry[] {
-  return store.getLogs()
-}
-
-function loadSavedMeals(): Record<string, string[]> {
-  return store.getSavedMeals()
-}
-
-function loadDailySetSelection(): DailySetSelection {
-  return store.getDailySetSelection()
-}
-
 function App() {
-  const [settings, setSettingsState] = useState<PlanSettings>(loadSettings)
-  const [logs, setLogsState] = useState<LogEntry[]>(loadLogs)
-  const [savedMeals, setSavedMealsState] = useState<Record<string, string[]>>(loadSavedMeals)
-  const [dailySetSelection, setDailySetSelectionState] = useState<DailySetSelection>(loadDailySetSelection)
+  const initialize = useAppStore((state) => state.initialize)
+  const isLoading = useIsLoading()
+  const settings = useSettings()
+  
+  // Initialize store on mount
+  useEffect(() => {
+    initialize()
+  }, [initialize])
 
-  const setSettings = useCallback((v: PlanSettings) => {
-    setSettingsState(v)
-    store.setSettings(v)
-  }, [])
-
-  const setLogs = useCallback((v: LogEntry[] | ((prev: LogEntry[]) => LogEntry[])) => {
-    setLogsState((prev) => {
-      const next = typeof v === 'function' ? v(prev) : v
-      store.setLogs(next)
-      return next
-    })
-  }, [])
-
-  const setSavedMeals = useCallback((v: Record<string, string[]> | ((p: Record<string, string[]>) => Record<string, string[]>)) => {
-    setSavedMealsState((prev) => {
-      const next = typeof v === 'function' ? v(prev) : v
-      store.setSavedMeals(next)
-      return next
-    })
-  }, [])
-
-  const setDailySetSelection = useCallback((v: DailySetSelection | ((p: DailySetSelection) => DailySetSelection)) => {
-    setDailySetSelectionState((prev) => {
-      const next = typeof v === 'function' ? v(prev) : v
-      store.setDailySetSelection(next)
-      return next
-    })
-  }, [])
-
+  // Setup notifications when settings are loaded
   useNotification(settings)
+
+  if (isLoading || !settings) {
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner"></div>
+        <p>加载中...</p>
+      </div>
+    )
+  }
 
   return (
     <HashRouter>
       <BackButtonHandler />
+      <ToastContainer />
       <div className="app">
         <nav className="nav">
           <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')}>
@@ -82,10 +51,10 @@ function App() {
         </nav>
         <main className="main">
           <Routes>
-            <Route path="/" element={<TodayListPage settings={settings} logs={logs} savedMeals={savedMeals} dailySetSelection={dailySetSelection} />} />
-            <Route path="/today/:slotId" element={<MealDetailPage settings={settings} logs={logs} setLogs={setLogs} savedMeals={savedMeals} setSavedMeals={setSavedMeals} dailySetSelection={dailySetSelection} setDailySetSelection={setDailySetSelection} />} />
-            <Route path="/settings" element={<SettingsPage settings={settings} setSettings={setSettings} />} />
-            <Route path="/data" element={<DataPage logs={logs} settings={settings} />} />
+            <Route path="/" element={<TodayPageNew />} />
+            <Route path="/today/:slotId" element={<MealDetailPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/data" element={<DataPage />} />
           </Routes>
         </main>
       </div>

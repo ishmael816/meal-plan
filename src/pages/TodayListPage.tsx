@@ -1,23 +1,32 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import type { PlanSettings, LogEntry } from '../types'
-import { getTodayPlan, type DailySetSelection } from '../todayPlan'
+import { getTodayPlan } from '../todayPlan'
+import { useSettings, useLogs, useSavedMeals, useDailySetSelection } from '../stores/appStore'
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-type Props = {
-  settings: PlanSettings
-  logs: LogEntry[]
-  savedMeals: Record<string, string[]>
-  dailySetSelection: DailySetSelection
-}
-
-export function TodayListPage({ settings, logs, savedMeals, dailySetSelection }: Props) {
+export function TodayListPage() {
+  const settings = useSettings()
+  const logs = useLogs()
+  const savedMeals = useSavedMeals()
+  const dailySetSelection = useDailySetSelection()
+  
   const date = todayStr()
-  const plan = useMemo(() => getTodayPlan(settings, logs, date, dailySetSelection), [settings, logs, date, dailySetSelection])
+  const plan = useMemo(
+    () => settings ? getTodayPlan(settings, logs, date, dailySetSelection) : [],
+    [settings, logs, date, dailySetSelection]
+  )
   const savedSlotIds = savedMeals[date] ?? []
+
+  if (!settings) {
+    return (
+      <div className="page">
+        <p className="muted">加载中...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="page">
